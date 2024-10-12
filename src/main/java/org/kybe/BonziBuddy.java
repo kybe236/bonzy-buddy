@@ -2,13 +2,9 @@ package org.kybe;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.text2speech.Narrator;
-import net.minecraft.client.GameNarrator;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import org.lwjgl.opengl.NVVertexArrayRange;
-import org.rusherhack.client.api.events.client.EventUpdate;
 import org.rusherhack.client.api.events.render.EventRender2D;
 import org.rusherhack.client.api.feature.hud.ResizeableHudElement;
 import org.rusherhack.client.api.render.RenderContext;
@@ -17,11 +13,9 @@ import org.rusherhack.core.event.stage.Stage;
 import org.rusherhack.core.event.subscribe.Subscribe;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /*
  * @author kybe236
@@ -44,23 +38,40 @@ public class BonziBuddy extends ResizeableHudElement {
 		textures = new HashMap<>();
 		locations = new HashMap<>();
 
-		try {
-			loadSprite("white", "/sprites/white.png", 64, 64, 64);
-			loadSprite("apears", "/sprites/bonzi_apears.png", 5200, 160, 200);
-			loadSprite("idle", "/sprites/idle.png", 200, 160, 200);
-			loadSprite("read_book", "/sprites/bonzi_read_book.png", 2800, 160, 200);
-			loadSprite("read_book_start", "/sprites/bonzi_read_book_start.png", 4400, 160, 200);
-			loadSprite("coconut_start", "/sprites/bonzi_coconut_start.png", 1000, 160, 200);
-			loadSprite("coconut", "/sprites/bonzi_coconut_loop.png", 2000, 160, 200);
+		loadSprite("white", "/sprites/white.png", 64, 64, 64);
+		loadSprite("apears", "/sprites/bonzi_apears.png", 5200, 160, 200);
+		loadSprite("idle", "/sprites/idle.png", 200, 160, 200);
+		loadSprite("read_book", "/sprites/bonzi_read_book.png", 2800, 160, 200);
+		loadSprite("read_book_start", "/sprites/bonzi_read_book_start.png", 4400, 160, 200);
+		loadSprite("coconut_start", "/sprites/bonzi_coconut_start.png", 1000, 160, 200);
+		loadSprite("coconut", "/sprites/bonzi_coconut_loop.png", 2000, 160, 200);
 
-			switchSpriteFile("apears");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		switchSpriteFile("apears");
 	}
 
-	public void loadSprite(String name, String path, int width, int height, int singleWidth) throws IOException {
-		Sprite sprite = new Sprite(this.getClass().getResourceAsStream(path), width, height, singleWidth);
+	/*
+	 * @param name The name of the sprite used for future reference
+	 * @param path The path to the sprite file in the resources folder
+	 * @param width The width of the sprite
+	 * @param height The height of the sprite
+	 * @param singleWidth The width of a single sprite in the sprite file
+	 */
+	public void loadSprite(String name, String path, int width, int height, int singleWidth) {
+		Sprite sprite = null;
+
+		try {
+			sprite = new Sprite(this.getClass().getResourceAsStream(path), width, height, singleWidth);
+		} catch (IOException e) {
+			ChatUtils.print("Failed to load sprite: " + name);
+			this.getLogger().error("Failed to load sprite: " + name);
+			e.printStackTrace();
+		}
+
+		if (sprite == null) {
+			ChatUtils.print("Sprite " + name + " is null");
+			this.getLogger().error("Sprite " + name + " is null");
+			return;
+		}
 		NativeImage image = sprite.getSprite(0);
 
 		DynamicTexture texture = new DynamicTexture(image);
@@ -72,6 +83,9 @@ public class BonziBuddy extends ResizeableHudElement {
 		locations.put(name, location);
 	}
 
+	/*
+	 * @param spriteFileName The name of the sprite to switch to
+	 */
 	public void switchSpriteFile(String spriteFileName) {
 		if (sprites.containsKey(spriteFileName)) {
 			currentSpriteName = spriteFileName;
@@ -80,6 +94,9 @@ public class BonziBuddy extends ResizeableHudElement {
 		}
 	}
 
+	/*
+	 * @param spriteIndex The index of the sprite to switch to (starting from 0)
+	 */
 	public void switchSpriteInFile(int spriteIndex) {
 		if (currentSprite != null) {
 			currentSpriteIndex = spriteIndex;
@@ -96,20 +113,30 @@ public class BonziBuddy extends ResizeableHudElement {
 		return 0;
 	}
 
+	/*
+	 * This method needs to be overridden for compatibility with the RusherHack API
+	 */
 	@Override
-	public void renderContent(RenderContext context, double mouseX, double mouseY) {
-	}
+	public void renderContent(RenderContext context, double mouseX, double ignore) {}
 
+	// Target FPS for the animation
 	int TARGET_FPS = 10;
 
+	// Time Frames to achieve the target FPS
 	private long lastUpdateTime = System.nanoTime();
 	private final long updateInterval = 1_000_000_000 / TARGET_FPS;
+
+	/*
+	 * Called after the 2D rendering stage to render the sprite above the HUD
+	 */
 	@Subscribe(stage = Stage.POST, priority = 100)
 	public void onRender2D(EventRender2D event) {
 		try {
+			// Calculate the elapsed time since the last update
 			long currentTime = System.nanoTime();
 			long elapsedTime = currentTime - lastUpdateTime;
 
+			// Update the sprite if the elapsed time is greater than the update interval
 			if (elapsedTime >= updateInterval) {
 				updateLogics();
 				lastUpdateTime = currentTime; // Update the last update time
@@ -119,6 +146,7 @@ public class BonziBuddy extends ResizeableHudElement {
 				return;
 			}
 
+			// Get the current sprite and render it
 			NativeImage image = currentSprite.getSprite(currentSpriteIndex);
 			textures.get(currentSpriteName).setPixels(image);
 			textures.get(currentSpriteName).upload();
@@ -130,7 +158,6 @@ public class BonziBuddy extends ResizeableHudElement {
 			e.printStackTrace();
 		}
 	}
-
 
 
 	enum State {
